@@ -38,10 +38,41 @@ public class OrderService {
         return orderRepository.findById(orderNo).orElse(null);
     }
 
-    public Order updateOrder(Long orderNo, Order order) {
-        order.setOrderNo(orderNo);
-        return orderRepository.save(order);
+    @Transactional
+public Order updateOrder(Long orderNo, Order order) {
+    // Cari order yang ada
+    Order existingOrder = orderRepository.findById(orderNo).orElse(null);
+    if (existingOrder == null) {
+        throw new IllegalArgumentException("Order not found");
     }
+
+    // Cari item terkait
+    Item item = itemRepository.findById(order.getItemId()).orElse(null);
+    if (item == null) {
+        throw new IllegalArgumentException("Item not found");
+    }
+
+    // Cek jika qty baru melebihi qty yang ada
+    if (item.getQty() < order.getQty()) {
+        throw new IllegalArgumentException("Not enough item quantity available");
+    }
+
+    if (existingOrder.getQty() != order.getQty()) {
+
+        item.setQty(item.getQty() + existingOrder.getQty());
+        item.setQty(item.getQty() - order.getQty());
+    }
+    
+    itemRepository.save(item);
+
+    order.setPrice(item.getPrice() * order.getQty());
+
+    // Update order dengan informasi baru
+    order.setOrderNo(orderNo);
+    order.setItemId(order.getItemId()); 
+    order.setQty(order.getQty());
+    return orderRepository.save(order);
+}
 
     public void deleteOrder(Long orderNo) {
         orderRepository.deleteById(orderNo);
